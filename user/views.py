@@ -17,9 +17,15 @@ class UserView(APIView):
             return self.sign_up(request)
         if 'login' in request.path:
             return self.login(request)
+    
+    def delete(self, request, *args, **kwargs):
         if 'logout' in request.path:
             return self.logout(request, *args, **kwargs)
         
+        if 'terminate-session' in request.path:
+            return self.terminate_session(request, *args, **kwargs)
+        
+                
         return Response({'message': 'Invalid endpoint'}, status=status.HTTP_404_NOT_FOUND)
 
     def sign_up(self, request):
@@ -93,10 +99,14 @@ class UserView(APIView):
             session = self._get_token(serializer.data['id'], user_agent)
 
             if not session:
-                 return Response({
+                except_response = Response({
                     'success': False,
                     'message': 'unauthorized',
                 }, status=status.HTTP_403_FORBIDDEN)
+            
+                except_response.delete_cookie('session')
+
+                return except_response
 
             response =  Response({
                 'success': True,
@@ -143,10 +153,27 @@ class UserView(APIView):
                 'message': 'Server error',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def logout_session(self, request):
-        return HttpResponse('logout session route')
+    def terminate_session(self, request):
+        try:
+            session = request.COOKIES.get('session')
+            UserSession.objects.filter(token=session).delete()
+            response = Response({
+                'success': True,
+                'data': 'logout' 
+            }, status=status.HTTP_200_OK)
+        
+            response.delete_cookie('session')
 
-    def delete(self, request):
+            return response
+
+        except Exception as e:
+            print(e)
+            return Response({
+                'success': False,
+                'message': 'Server error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete_user(self, request):
         return HttpResponse('delete user route')
 
     def _get_token(self, user_id, user_agent):
