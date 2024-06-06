@@ -17,6 +17,8 @@ class UserView(APIView):
             return self.sign_up(request)
         if 'login' in request.path:
             return self.login(request)
+        if 'logout' in request.path:
+            return self.logout(request, *args, **kwargs)
         
         return Response({'message': 'Invalid endpoint'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -117,8 +119,29 @@ class UserView(APIView):
                 'message': 'Server error',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def logout(self, request):
-        return HttpResponse('logout route')
+    def logout(self, request, *args, **kwargs):
+        try:
+            username = kwargs.get('username')
+            try:
+                user = User.objects.get(username=username)
+            except Exception as e:
+                return Response({
+                    'success': False,
+                    'message': 'user not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            UserSession.objects.filter(user=user).delete()
+
+            return Response({
+                'success': True,
+                'data': 'logout' 
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response({
+                'success': False,
+                'message': 'Server error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def logout_session(self, request):
         return HttpResponse('logout session route')
@@ -127,7 +150,10 @@ class UserView(APIView):
         return HttpResponse('delete user route')
 
     def _get_token(self, user_id, user_agent):
-        exist_session = UserSession.objects.filter(user_id=user_id).first()
+        exist_session = UserSession.objects.filter(
+            user_id=user_id,
+            user_agent=user_agent
+            ).first()
 
         if exist_session:
             exp_datetime = datetime.datetime.fromtimestamp(exist_session.exp / 1000.0, datetime.timezone.utc)
