@@ -87,6 +87,12 @@ class UserView(APIView):
             serializer = UserSerializer(user)
             session = self._get_token(serializer.data['id'])
 
+            if not session:
+                 return Response({
+                    'success': False,
+                    'message': 'unauthorized',
+                }, status=status.HTTP_403_FORBIDDEN)
+
             response =  Response({
                 'success': True,
                 'data': serializer.data,
@@ -127,13 +133,14 @@ class UserView(APIView):
                 return exist_session.token
             else:
                 exist_session.delete()
+                return None
 
         cur_time = datetime.datetime.now()
         next_month = cur_time + dateutil.relativedelta.relativedelta(months=1)
-        diff_time = next_month - cur_time
+
         data = {
             'token': uuid.uuid4(),
-            'exp': int(diff_time.total_seconds() * 1000), 
+            'exp': int(next_month.timestamp() * 1000), 
             'user': user_id
         }
 
