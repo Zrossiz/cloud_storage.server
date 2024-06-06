@@ -12,7 +12,7 @@ class User(models.Model):
         db_table = "user"
 
 class UserSession(models.Model):
-    token = models.CharField()
+    token = models.CharField(max_length=36)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     exp = models.BigIntegerField()
     user_agent = models.CharField()

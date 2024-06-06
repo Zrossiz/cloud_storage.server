@@ -23,7 +23,9 @@ class UserView(APIView):
     def sign_up(self, request):
         try:
             body = request.data
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
             existUser = User.objects.filter(username=body['username']).exists()
+
 
             if existUser:
                 return Response({
@@ -37,7 +39,7 @@ class UserView(APIView):
             serializer = UserSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             serializer.save()
-            session = self._get_token(serializer.data['id'])
+            session = self._get_token(serializer.data['id'], user_agent)
 
             response =  Response({
                 'success': True,
@@ -66,6 +68,7 @@ class UserView(APIView):
             data = request.data
             username = data['username']
             password = data['password'].encode('utf-8')
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
 
             try:
                 user = User.objects.get(username=username)
@@ -85,7 +88,7 @@ class UserView(APIView):
             
 
             serializer = UserSerializer(user)
-            session = self._get_token(serializer.data['id'])
+            session = self._get_token(serializer.data['id'], user_agent)
 
             if not session:
                  return Response({
@@ -123,7 +126,7 @@ class UserView(APIView):
     def delete(self, request):
         return HttpResponse('delete user route')
 
-    def _get_token(self, user_id):
+    def _get_token(self, user_id, user_agent):
         exist_session = UserSession.objects.filter(user_id=user_id).first()
 
         if exist_session:
@@ -137,11 +140,13 @@ class UserView(APIView):
 
         cur_time = datetime.datetime.now()
         next_month = cur_time + dateutil.relativedelta.relativedelta(months=1)
-
+        token = str(uuid.uuid4())
+        print(token)
         data = {
-            'token': uuid.uuid4(),
+            'token': token,
             'exp': int(next_month.timestamp() * 1000), 
-            'user': user_id
+            'user': user_id,
+            'user_agent': user_agent
         }
 
         serializer = UserSessionSerializer(data=data)
