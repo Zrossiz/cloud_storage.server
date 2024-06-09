@@ -1,4 +1,4 @@
-version: '3'
+version: '3.8'
 
 services:
   db:
@@ -8,7 +8,10 @@ services:
     environment:
       POSTGRES_DB: cloud-storage
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root  
+      POSTGRES_PASSWORD: root
+    networks:
+      - backend
+
   web:
     build: .
     command: python manage.py runserver 0.0.0.0:8000
@@ -18,6 +21,15 @@ services:
       - "8000:8000"
     depends_on:
       - db
+      - redis
+    networks:
+      - backend
+    environment:
+      - SECRET_KEY=django-insecure-=(kh-486vwl^ixi8+duxs$7c!_qsq@+r$ssmn@wioav=a^fq)*
+      - DB_NAME=cloud-storage
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+
   redis:
     image: redis:latest
     ports:
