@@ -18,6 +18,16 @@ services:
       - "8000:8000"
     depends_on:
       - db
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
 
 volumes:
   postgres_data:
