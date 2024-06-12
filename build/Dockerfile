@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Собираем приложение
-RUN go build -o /goapp
+RUN go build -o /goapp cmd/app/main.go
 
 # Указываем команду запуска контейнера
 CMD ["/goapp"]
