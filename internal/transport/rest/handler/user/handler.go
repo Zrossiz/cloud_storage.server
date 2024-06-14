@@ -3,11 +3,15 @@ package user
 import (
 	"cloudStorage/internal/models"
 	"cloudStorage/internal/transport/rest/response"
+	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -50,6 +54,25 @@ func UserHandler(db *gorm.DB, redis *redis.Client) http.HandlerFunc {
 			response.SendError(w, http.StatusInternalServerError, "Error saving user")
 			return
 		}
+		token := uuid.New().String()
+		redisUserId := fmt.Sprintf("%d", user.ID)
+		redisSession := fmt.Sprintf("%s", token)
+		ctx := context.Background()
+
+		err = redis.Set(ctx, redisUserId, redisSession, 10*time.Second).Err()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			response.SendError(w, http.StatusInternalServerError, "Error saving session")
+			return
+		}
+
+		cookie := http.Cookie{
+			Name:    "session",
+			Value:   token,
+			Expires: time.Now().Add(10 * time.Second),
+			Path:    "/",
+		}
+		http.SetCookie(w, &cookie)
 
 		response.SendData(w, http.StatusCreated, user)
 	}
