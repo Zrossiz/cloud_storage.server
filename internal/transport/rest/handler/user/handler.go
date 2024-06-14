@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -29,6 +30,13 @@ func UserHandler(db *gorm.DB) http.HandlerFunc {
 			http.Error(w, "Error parsing JSON", http.StatusBadRequest)
 			return
 		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+		if err != nil {
+			http.Error(w, "Error hashing password", http.StatusInternalServerError)
+		}
+
+		user.Password = string(hashedPassword)
 
 		if err := db.Create(&user).Error; err != nil {
 			http.Error(w, "Error saving user", http.StatusInternalServerError)
