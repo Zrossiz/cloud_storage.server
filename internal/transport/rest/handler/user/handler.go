@@ -10,6 +10,11 @@ import (
 	"gorm.io/gorm"
 )
 
+type Response struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
 func UserHandler(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -28,6 +33,22 @@ func UserHandler(db *gorm.DB) http.HandlerFunc {
 
 		if err := json.Unmarshal(body, &user); err != nil {
 			http.Error(w, "Error parsing JSON", http.StatusBadRequest)
+			return
+		}
+
+		var existingUserByEmail models.User
+		if err := db.Where("email = ?", user.Email).First(&existingUserByEmail).Error; err == nil {
+			response := Response{Success: false, Error: "Email already in use"}
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		var existingUserByUsername models.User
+		if err := db.Where("name = ?", user.Name).First(&existingUserByUsername).Error; err == nil {
+			response := Response{Success: false, Error: "Username already in use"}
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 
