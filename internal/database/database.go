@@ -1,33 +1,42 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 
-	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-func InitConnect() (*sql.DB, error) {
+// InitConnect initializes the database connection using gorm
+func InitConnect() (*gorm.DB, error) {
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbUser := os.Getenv("DB_USER")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	connStr := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPassword, dbName,
+	)
 
 	return connect(connStr)
 }
 
-func connect(connStr string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", connStr)
+// connect establishes a connection to the database using gorm
+func connect(connStr string) (*gorm.DB, error) {
+	db, err := gorm.Open(postgres.Open(connStr), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
 
-	err = db.Ping()
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+
+	err = sqlDB.Ping()
 	if err != nil {
 		return nil, err
 	}

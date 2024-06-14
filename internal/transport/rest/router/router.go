@@ -2,14 +2,13 @@ package router
 
 import (
 	"cloudStorage/internal/transport/rest/handler/user"
-	"database/sql"
 	"net/http"
+
+	"gorm.io/gorm"
 )
 
-func NewRouter(db *sql.DB) *http.ServeMux {
+func NewRouter(db *gorm.DB) http.Handler {
 	mux := http.NewServeMux()
-
-	mux.HandleFunc("/api/user", user.UserHandler(db))
-
+	mux.HandleFunc("/api/user/", user.UserHandler(db))
 	return mux
 }

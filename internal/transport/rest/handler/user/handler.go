@@ -2,13 +2,14 @@ package user
 
 import (
 	"cloudStorage/internal/models"
-	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
+
+	"gorm.io/gorm"
 )
 
-func UserHandler(db *sql.DB) http.HandlerFunc {
+func UserHandler(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -29,15 +30,7 @@ func UserHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		query := `
-			INSERT INTO users (name, email, password) 
-			VALUES ($1, $2, $3) 
-			RETURNING id, name, email, password, created_at, updated_at, deleted_at
-		`
-
-		err = db.QueryRow(query, user.Name, user.Email, user.Password).Scan(
-			&user.ID, &user.Name, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt, &user.DeletedAt)
-		if err != nil {
+		if err := db.Create(&user).Error; err != nil {
 			http.Error(w, "Error saving user", http.StatusInternalServerError)
 			return
 		}
@@ -45,6 +38,7 @@ func UserHandler(db *sql.DB) http.HandlerFunc {
 		userJSON, err := json.Marshal(user)
 		if err != nil {
 			http.Error(w, "Error generating JSON", http.StatusInternalServerError)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")

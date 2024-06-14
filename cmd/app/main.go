@@ -2,6 +2,7 @@ package main
 
 import (
 	db "cloudStorage/internal/database"
+	"cloudStorage/internal/models"
 	"cloudStorage/internal/transport/rest/router"
 	"fmt"
 	"log"
@@ -17,9 +18,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	defer database.Close()
-
-	if err := db.Migrate(database); err != nil {
+	if err := database.AutoMigrate(&models.User{}); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 	router := router.NewRouter(database)
