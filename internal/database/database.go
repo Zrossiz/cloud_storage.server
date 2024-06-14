@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// InitConnect initializes the database connection using gorm
 func InitConnect() (*gorm.DB, error) {
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
@@ -24,7 +23,6 @@ func InitConnect() (*gorm.DB, error) {
 	return connect(connStr)
 }
 
-// connect establishes a connection to the database using gorm
 func connect(connStr string) (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(connStr), &gorm.Config{})
 	if err != nil {

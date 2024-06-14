@@ -7,10 +7,11 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
-func UserHandler(db *gorm.DB) http.HandlerFunc {
+func UserHandler(db *gorm.DB, redis *redis.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			response.SendError(w, http.StatusMethodNotAllowed, "Invalid request method")

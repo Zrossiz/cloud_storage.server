@@ -21,7 +21,13 @@ func main() {
 	if err := database.AutoMigrate(&models.User{}); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
-	router := router.NewRouter(database)
+
+	redisClient, err := db.InitRedis()
+	if err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+
+	router := router.NewRouter(database, redisClient)
 
 	fmt.Println("Successfully connected to the database and applied migrations!")
 
