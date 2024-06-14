@@ -1,6 +1,7 @@
 package user
 
 import (
+	"cloudStorage/internal/dto"
 	"cloudStorage/internal/models"
 	"cloudStorage/internal/transport/rest/response"
 	"context"
@@ -13,16 +14,17 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 func UserHandler(db *gorm.DB, redis *redis.Client) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && strings.Contains(r.URL.String(), "register") {
+		if r.Method == http.MethodPost && strings.Contains(r.URL.String(), "register/") {
 			create(w, r, db, redis)
 		}
-		if r.Method == http.MethodPost && strings.Contains(r.URL.String(), "login") {
+		if r.Method == http.MethodPost && strings.Contains(r.URL.String(), "login/") {
 			login(w, r, db, redis)
 		}
 	}
@@ -62,15 +64,62 @@ func create(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Cl
 		return
 	}
 
-	token := uuid.New().String()
-	redisUserId := fmt.Sprintf("%d", user.ID)
-	ctx := context.Background()
-
-	err = redis.Set(ctx, redisUserId, token, 10*time.Second).Err()
+	cookie, err := createSession(int(user.ID), redis)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		response.SendError(w, http.StatusInternalServerError, "Error saving session")
 		return
+	}
+
+	http.SetCookie(w, &cookie)
+
+	response.SendData(w, http.StatusCreated, user)
+}
+
+func login(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Client) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.SendError(w, http.StatusInternalServerError, "Error reading request body")
+		return
+	}
+	defer r.Body.Close()
+
+	var userDTO dto.LoginUserDTO
+	if err := json.Unmarshal(body, &userDTO); err != nil {
+		response.SendError(w, http.StatusBadRequest, "Error parsing JSON")
+		return
+	}
+
+	var existingUser models.User
+	if err := db.Where("name = ?", userDTO.Name).First(&existingUser).Error; err != nil {
+		response.SendError(w, http.StatusNotFound, "Invalid credentials")
+		return
+	}
+
+	isValid := bcrypt.CompareHashAndPassword([]byte(existingUser.Password), []byte(userDTO.Password))
+	if isValid != nil {
+		response.SendError(w, http.StatusNotFound, "Invalid credentials")
+		return
+	}
+
+	cookie, err := createSession(int(existingUser.ID), redis)
+	if err != nil {
+		response.SendError(w, http.StatusInternalServerError, "Error saving session")
+		return
+	}
+
+	http.SetCookie(w, &cookie)
+
+	response.SendData(w, http.StatusOK, existingUser)
+}
+
+func createSession(userId int, redis *redis.Client) (http.Cookie, error) {
+	token := uuid.New().String()
+	redisUserId := fmt.Sprintf("%d", userId)
+	ctx := context.Background()
+
+	err := redis.Set(ctx, redisUserId, token, 10*time.Second).Err()
+	if err != nil {
+		return http.Cookie{}, err
 	}
 
 	cookie := http.Cookie{
@@ -79,16 +128,6 @@ func create(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Cl
 		Expires: time.Now().Add(10 * time.Second),
 		Path:    "/",
 	}
-	http.SetCookie(w, &cookie)
 
-	response.SendData(w, http.StatusCreated, user)
-}
-
-func login(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Client) {
-	// body, err := io.ReadAll(r.Body)
-	// if err != nil {
-	// 	response.SendError(w, http.StatusInternalServerError, "Error reading request body")
-	// }
-	// defer r.Body.Close()
-
+	return cookie, nil
 }
