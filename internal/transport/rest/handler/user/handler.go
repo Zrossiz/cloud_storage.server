@@ -70,6 +70,14 @@ func create(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Cl
 		return
 	}
 
+	userCookie := http.Cookie{
+		Name:    "userId",
+		Value:   fmt.Sprintf("%d", user.ID),
+		Expires: time.Now().Add(10 * time.Second),
+		Path:    "/",
+	}
+
+	http.SetCookie(w, &userCookie)
 	http.SetCookie(w, &cookie)
 
 	response.SendData(w, http.StatusCreated, user)
@@ -107,6 +115,14 @@ func login(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Cli
 		return
 	}
 
+	userCookie := http.Cookie{
+		Name:    "userId",
+		Value:   fmt.Sprintf("%d", existingUser.ID),
+		Expires: time.Now().Add(10 * time.Second),
+		Path:    "/",
+	}
+
+	http.SetCookie(w, &userCookie)
 	http.SetCookie(w, &cookie)
 
 	response.SendData(w, http.StatusOK, existingUser)
