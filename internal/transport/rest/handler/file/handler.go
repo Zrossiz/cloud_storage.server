@@ -1,7 +1,7 @@
 package file
 
 import (
-	"cloudStorage/internal/services/middleware"
+	"cloudStorage/internal/middleware"
 	"cloudStorage/internal/transport/rest/response"
 	"net/http"
 	"strings"
