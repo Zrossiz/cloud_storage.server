@@ -118,7 +118,7 @@ func login(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Cli
 	userCookie := http.Cookie{
 		Name:    "userId",
 		Value:   fmt.Sprintf("%d", existingUser.ID),
-		Expires: time.Now().Add(10 * time.Second),
+		Expires: time.Now().Add(24 * time.Hour),
 		Path:    "/",
 	}
 
@@ -133,7 +133,7 @@ func createSession(userId int, redis *redis.Client) (http.Cookie, error) {
 	redisUserId := fmt.Sprintf("%d", userId)
 	ctx := context.Background()
 
-	err := redis.Set(ctx, redisUserId, token, 10*time.Second).Err()
+	err := redis.Set(ctx, redisUserId, token, 24*time.Hour).Err()
 	if err != nil {
 		return http.Cookie{}, err
 	}
@@ -141,7 +141,7 @@ func createSession(userId int, redis *redis.Client) (http.Cookie, error) {
 	cookie := http.Cookie{
 		Name:    "session",
 		Value:   token,
-		Expires: time.Now().Add(10 * time.Second),
+		Expires: time.Now().Add(24 * time.Hour),
 		Path:    "/",
 	}
 
