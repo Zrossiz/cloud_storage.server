@@ -14,21 +14,22 @@ import (
 
 func InitApp(redis *redis.Client) {
 	database, err := db.InitConnect()
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := database.AutoMigrate(&models.User{}); err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
+	if errDB := database.AutoMigrate(&models.User{}); errDB != nil {
+		log.Fatalf("Failed to migrate database: %v", errDB)
 	}
 
-	router := router.NewRouter(database, redis)
+	minioStorage := db.InitMinio()
+
+	router := router.NewRouter(database, redis, minioStorage)
 
 	fmt.Println("Successfully connected to the database and applied migrations!")
 
 	fmt.Println("Starting server at port 8080")
-	if err := http.ListenAndServe(":8080", router); err != nil {
-		log.Fatal(err)
+	if errApp := http.ListenAndServe(":8080", router); errApp != nil {
+		log.Fatal(errApp)
 	}
 }

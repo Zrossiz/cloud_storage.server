@@ -7,10 +7,11 @@ import (
 	"strings"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/minio/minio-go/v7"
 	"gorm.io/gorm"
 )
 
-func FileHandler(db *gorm.DB, redis *redis.Client) http.HandlerFunc {
+func FileHandler(db *gorm.DB, redis *redis.Client, minioStorage *minio.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && strings.Contains(r.URL.String(), "upload-file/") {
 			uploadFile(w, r, db, redis)
