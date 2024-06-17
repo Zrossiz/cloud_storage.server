@@ -24,7 +24,7 @@ func InitMinio() *minio.Client {
 		log.Fatalf("Failed to create MinIO client: %v", err)
 	}
 
-	bucketName := "cloud-storage"
+	bucketName := os.Getenv("BUCKET_NAME")
 	location := "eu-central-1"
 
 	err = createBucket(minioClient, bucketName, location)

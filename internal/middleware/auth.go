@@ -7,26 +7,27 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func AuthMiddleware(w http.ResponseWriter, r *http.Request, redisClient *redis.Client) bool {
+func AuthMiddleware(w http.ResponseWriter, r *http.Request, redisClient *redis.Client) (*http.Request, bool) {
 	idCookie, idErr := r.Cookie("userId")
 	if idErr != nil {
-		return false
+		return r, false
 	}
 
 	tokenCookie, sessionErr := r.Cookie("session")
 	if sessionErr != nil {
-		return false
+		return r, false
 	}
 
-	ctx := context.Background()
+	ctx := r.Context()
 	redisSession, redisErr := redisClient.Get(ctx, idCookie.Value).Result()
 	if redisErr == redis.Nil || redisErr != nil {
-		return false
+		return r, false
 	}
 
 	if redisSession != tokenCookie.Value {
-		return false
+		return r, false
 	}
+	ctx = context.WithValue(ctx, "userId", idCookie.Value)
 
-	return true
+	return r.WithContext(ctx), true
 }

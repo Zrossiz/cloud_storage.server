@@ -13,7 +13,7 @@ import (
 func FileHandler(db *gorm.DB, redis *redis.Client, minioStorage *minio.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && strings.Contains(r.URL.String(), "upload-file/") {
-			service.UploadFile(w, r, db, redis)
+			service.UploadFile(w, r, db, redis, minioStorage)
 		}
 	}
 }
