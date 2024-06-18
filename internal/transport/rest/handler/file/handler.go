@@ -15,5 +15,8 @@ func FileHandler(db *gorm.DB, redis *redis.Client, minioStorage *minio.Client) h
 		if r.Method == http.MethodPost && strings.Contains(r.URL.String(), "upload-file/") {
 			service.UploadFile(w, r, db, redis, minioStorage)
 		}
+		if r.Method == http.MethodPost && strings.Contains(r.URL.String(), "find/") {
+			service.FindFiles(w, r, db, redis, minioStorage)
+		}
 	}
 }

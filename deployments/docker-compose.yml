@@ -20,9 +20,10 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_ACCESS_KEY=nFErT3qmyXSFa-0-
+      - MINIO_SECRET_KEY=CI4hvrjJQiS3-NuNi4nMHPVBqzHU8Bw0
       - BUCKET_NAME=cloud-storage
+      - MINIO_PUBLIC_HOST=localhost:9000
 
   db:
     image: postgres:15
@@ -46,8 +47,8 @@ services:
     ports:
       - "9000:9000"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_ROOT_USER=nFErT3qmyXSFa-0-
+      - MINIO_ROOT_PASSWORD=CI4hvrjJQiS3-NuNi4nMHPVBqzHU8Bw0
     volumes:
       - minio_data:/data
 
