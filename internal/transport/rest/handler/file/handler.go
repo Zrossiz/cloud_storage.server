@@ -24,6 +24,8 @@ func FileHandler(db *gorm.DB, redis *redis.Client, minioStorage *minio.Client) h
 		if r.Method == http.MethodPost && strings.Contains(r.URL.String(), "update/") {
 			service.UpdateFile(w, r, redis, minioStorage)
 		}
-
+		if r.Method == http.MethodGet && strings.Contains(r.URL.String(), "get/") {
+			service.GetAllByPath(w, r, redis, minioStorage)
+		}
 	}
 }

@@ -20,6 +20,7 @@ import (
 type FileLink struct {
 	Name string `json:"name"`
 	Link string `json:"link"`
+	Type string `json:"type"`
 }
 
 func UploadFile(w http.ResponseWriter, r *http.Request, redis *redis.Client, minioStorage *minio.Client) {
@@ -104,10 +105,14 @@ func FindFiles(w http.ResponseWriter, r *http.Request, redis *redis.Client, mini
 		}
 
 		fileLink := strings.Replace(presignedURL.String(), "minio:9000", os.Getenv("MINIO_PUBLIC_HOST"), 1)
-
+		fileType := "file"
+		if object.Size == 0 && strings.HasSuffix(object.Key, "/") {
+			fileType = "folder"
+		}
 		fileLinks = append(fileLinks, FileLink{
 			Name: strings.TrimPrefix(object.Key, prefix),
 			Link: fileLink,
+			Type: fileType,
 		})
 	}
 
@@ -193,4 +198,46 @@ func CreateFolder(w http.ResponseWriter, r *http.Request, redis *redis.Client, m
 	}
 
 	response.SendData(w, http.StatusCreated, uploadInfo.Key)
+}
+
+func GetAllByPath(w http.ResponseWriter, r *http.Request, redis *redis.Client, minioStorage *minio.Client) {
+	customRequest, isAuth := middleware.AuthMiddleware(w, r, redis)
+	if !isAuth || customRequest == nil {
+		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	userId, ok := customRequest.Context().Value("userId").(string)
+	if !ok {
+		response.SendError(w, http.StatusInternalServerError, "UserId not found in context")
+		return
+	}
+	dirPath := r.FormValue("path")
+	pathFolder := "user-" + userId + "-files/" + dirPath
+
+	ctx := context.Background()
+	objectCh := minioStorage.ListObjects(ctx, os.Getenv("BUCKET_NAME"), minio.ListObjectsOptions{
+		Prefix:    pathFolder,
+		Recursive: false,
+	})
+	var files []FileLink
+	for object := range objectCh {
+		if object.Err != nil {
+			log.Println("Error listing objects:", object.Err)
+			http.Error(w, "Error listing objects", http.StatusInternalServerError)
+			return
+		}
+
+		fileType := "file"
+		if object.Size == 0 && strings.HasSuffix(object.Key, "/") {
+			fileType = "folder"
+		}
+
+		files = append(files, FileLink{
+			Name: strings.TrimPrefix(object.Key, pathFolder),
+			Type: fileType,
+		})
+	}
+
+	response.SendData(w, http.StatusOK, files)
 }
