@@ -36,6 +36,8 @@ func UploadFile(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redi
 		return
 	}
 
+	dirPath := r.FormValue("path")
+
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		response.SendError(w, http.StatusBadRequest, "Failed to get file from request")
@@ -44,7 +46,13 @@ func UploadFile(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redi
 	defer file.Close()
 
 	objectName := handler.Filename
-	filePath := "user-" + userId + "-files/" + objectName
+	filePath := "user-" + userId + "-files/"
+	if dirPath != "" {
+		filePath = filePath + dirPath + objectName
+	} else {
+		filePath = filePath + objectName
+	}
+
 	contentType := handler.Header.Get("Content-Type")
 
 	_, err = minioStorage.PutObject(context.Background(), os.Getenv("BUCKET_NAME"), filePath, file, -1, minio.PutObjectOptions{ContentType: contentType})
