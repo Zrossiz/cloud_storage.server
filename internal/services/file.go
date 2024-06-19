@@ -1,9 +1,11 @@
 package service
 
 import (
+	"cloudStorage/internal/dto"
 	"cloudStorage/internal/middleware"
 	"cloudStorage/internal/transport/rest/response"
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"net/url"
@@ -63,7 +65,7 @@ func FindFiles(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis
 
 	userId, ok := customRequest.Context().Value("userId").(string)
 	if !ok {
-		http.Error(w, "UserId not found in context", http.StatusInternalServerError)
+		response.SendError(w, http.StatusInternalServerError, "UserId not found in context")
 		return
 	}
 
@@ -103,4 +105,56 @@ func FindFiles(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis
 	}
 
 	response.SendData(w, http.StatusOK, fileLinks)
+}
+
+func UpdateFile(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Client, minioStorage *minio.Client) {
+	customRequest, isAuth := middleware.AuthMiddleware(w, r, redis)
+	if !isAuth || customRequest == nil {
+		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	userId, ok := customRequest.Context().Value("userId").(string)
+	if !ok {
+		response.SendError(w, http.StatusInternalServerError, "UserId not found in context")
+		return
+	}
+
+	var body dto.UpdateFileDto
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		response.SendError(w, http.StatusBadRequest, "Invalid request body")
+	}
+	defer r.Body.Close()
+	bucketName := os.Getenv("BUCKET_NAME")
+	prefix := "/user-" + userId + "-files/"
+
+	ctx := context.Background()
+
+	originalPath := body.Path
+	originalPathArr := strings.Split(originalPath, "/")
+	// Имя файла с новым именем
+	originalPathArr[len(originalPathArr)-1] = body.Name
+	newPath := strings.Join(originalPathArr, "/")
+
+	src := minio.CopySrcOptions{
+		Bucket: bucketName,
+		Object: prefix + originalPath,
+	}
+	dst := minio.CopyDestOptions{
+		Bucket: bucketName,
+		Object: prefix + newPath,
+	}
+	_, err = minioStorage.CopyObject(ctx, dst, src)
+	if err != nil {
+		response.SendError(w, http.StatusInternalServerError, "Failed to copy object")
+		return
+	}
+
+	err = minioStorage.RemoveObject(ctx, bucketName, prefix+originalPath, minio.RemoveObjectOptions{})
+	if err != nil {
+		response.SendError(w, http.StatusInternalServerError, "Failed to remove original object")
+	}
+
+	response.SendData(w, http.StatusOK, newPath)
 }
