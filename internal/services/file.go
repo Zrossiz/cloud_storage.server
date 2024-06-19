@@ -165,3 +165,32 @@ func UpdateFile(w http.ResponseWriter, r *http.Request, redis *redis.Client, min
 
 	response.SendData(w, http.StatusOK, newPath)
 }
+
+func CreateFolder(w http.ResponseWriter, r *http.Request, redis *redis.Client, minioStorage *minio.Client) {
+	customRequest, isAuth := middleware.AuthMiddleware(w, r, redis)
+	if !isAuth || customRequest == nil {
+		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	userId, ok := customRequest.Context().Value("userId").(string)
+	if !ok {
+		response.SendError(w, http.StatusInternalServerError, "UserId not found in context")
+		return
+	}
+
+	dirPath := r.FormValue("path")
+	pathFolder := "user-" + userId + "-files/" + dirPath
+
+	if !strings.HasSuffix(pathFolder, "/") {
+		pathFolder += "/"
+	}
+
+	uploadInfo, err := minioStorage.PutObject(context.Background(), os.Getenv("BUCKET_NAME"), pathFolder, nil, 0, minio.PutObjectOptions{})
+	if err != nil {
+		response.SendError(w, http.StatusInternalServerError, "Failed to create folder")
+		return
+	}
+
+	response.SendData(w, http.StatusCreated, uploadInfo.Key)
+}
