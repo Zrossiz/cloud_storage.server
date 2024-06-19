@@ -4,7 +4,6 @@ import (
 	"cloudStorage/internal/middleware"
 	"cloudStorage/internal/transport/rest/response"
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -70,6 +69,8 @@ func FindFiles(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis
 
 	ctx := context.Background()
 	prefix := "user-" + userId + "-files/"
+	searchQuery := r.URL.Query().Get("search")
+
 	objectCh := minioStorage.ListObjects(ctx, os.Getenv("BUCKET_NAME"), minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: true,
@@ -81,9 +82,11 @@ func FindFiles(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis
 		if object.Err != nil {
 			log.Fatalln(object.Err)
 		}
-		fmt.Println(object.Key)
 
-		// Генерация подписанного URL с использованием AWS Signature Version 4
+		if searchQuery != "" && !strings.Contains(object.Key, searchQuery) {
+			continue
+		}
+
 		reqParams := make(url.Values)
 		presignedURL, err := minioStorage.PresignedGetObject(ctx, os.Getenv("BUCKET_NAME"), object.Key, time.Hour*24, reqParams)
 		if err != nil {
@@ -91,7 +94,6 @@ func FindFiles(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis
 			return
 		}
 
-		// Заменить minio:9000 на публичный хост
 		fileLink := strings.Replace(presignedURL.String(), "minio:9000", os.Getenv("MINIO_PUBLIC_HOST"), 1)
 
 		fileLinks = append(fileLinks, FileLink{
