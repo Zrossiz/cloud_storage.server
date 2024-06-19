@@ -15,7 +15,6 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/minio/minio-go/v7"
-	"gorm.io/gorm"
 )
 
 type FileLink struct {
@@ -23,7 +22,7 @@ type FileLink struct {
 	Link string `json:"link"`
 }
 
-func UploadFile(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Client, minioStorage *minio.Client) {
+func UploadFile(w http.ResponseWriter, r *http.Request, redis *redis.Client, minioStorage *minio.Client) {
 	customRequest, isAuth := middleware.AuthMiddleware(w, r, redis)
 	if !isAuth || customRequest == nil {
 		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
@@ -64,7 +63,7 @@ func UploadFile(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redi
 	response.SendData(w, http.StatusCreated, "File uploaded successfully")
 }
 
-func FindFiles(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Client, minioStorage *minio.Client) {
+func FindFiles(w http.ResponseWriter, r *http.Request, redis *redis.Client, minioStorage *minio.Client) {
 	customRequest, isAuth := middleware.AuthMiddleware(w, r, redis)
 	if !isAuth || customRequest == nil {
 		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
@@ -115,7 +114,7 @@ func FindFiles(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis
 	response.SendData(w, http.StatusOK, fileLinks)
 }
 
-func UpdateFile(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis.Client, minioStorage *minio.Client) {
+func UpdateFile(w http.ResponseWriter, r *http.Request, redis *redis.Client, minioStorage *minio.Client) {
 	customRequest, isAuth := middleware.AuthMiddleware(w, r, redis)
 	if !isAuth || customRequest == nil {
 		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
