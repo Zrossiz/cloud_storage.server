@@ -241,3 +241,48 @@ func GetAllByPath(w http.ResponseWriter, r *http.Request, redis *redis.Client, m
 
 	response.SendData(w, http.StatusOK, files)
 }
+
+func DeleteObj(w http.ResponseWriter, r *http.Request, redis *redis.Client, minioStorage *minio.Client) {
+	customRequest, isAuth := middleware.AuthMiddleware(w, r, redis)
+	if !isAuth || customRequest == nil {
+		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	userId, ok := customRequest.Context().Value("userId").(string)
+	if !ok {
+		response.SendError(w, http.StatusInternalServerError, "UserId not found in context")
+		return
+	}
+
+	dirPath := r.FormValue("path")
+	pathObj := "user-" + userId + "-files/" + dirPath
+
+	err := recursiveDelete(minioStorage, os.Getenv("BUCKET_NAME"), pathObj)
+	if err != nil {
+		response.SendError(w, http.StatusInternalServerError, "Failed recursive delete folder")
+	}
+
+	response.SendData(w, http.StatusOK, pathObj)
+}
+
+func recursiveDelete(minioStorage *minio.Client, bucketName, prefix string) error {
+	ctx := context.Background()
+	objectCh := minioStorage.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
+		Prefix:    prefix,
+		Recursive: true,
+	})
+
+	for object := range objectCh {
+		if object.Err != nil {
+			return object.Err
+		}
+
+		err := minioStorage.RemoveObject(ctx, bucketName, object.Key, minio.RemoveObjectOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

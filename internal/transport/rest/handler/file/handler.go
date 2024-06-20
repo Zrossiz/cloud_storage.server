@@ -27,5 +27,8 @@ func FileHandler(db *gorm.DB, redis *redis.Client, minioStorage *minio.Client) h
 		if r.Method == http.MethodGet && strings.Contains(r.URL.String(), "get/") {
 			service.GetAllByPath(w, r, redis, minioStorage)
 		}
+		if r.Method == http.MethodDelete && strings.Contains(r.URL.String(), "delete/") {
+			service.DeleteObj(w, r, redis, minioStorage)
+		}
 	}
 }
