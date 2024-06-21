@@ -266,6 +266,64 @@ func DeleteObj(w http.ResponseWriter, r *http.Request, redis *redis.Client, mini
 	response.SendData(w, http.StatusOK, pathObj)
 }
 
+func RenameFolder(w http.ResponseWriter, r *http.Request, redis *redis.Client, minioStorage *minio.Client) {
+	customRequest, isAuth := middleware.AuthMiddleware(w, r, redis)
+	if !isAuth || customRequest == nil {
+		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	userId, ok := customRequest.Context().Value("userId").(string)
+	if !ok {
+		response.SendError(w, http.StatusInternalServerError, "UserId not found in context")
+		return
+	}
+
+	dirPath := r.FormValue("from")
+	newDirPath := r.FormValue("to")
+	pathFolder := "user-" + userId + "-files/" + dirPath
+	newPathFolder := "user-" + userId + "-files/" + newDirPath
+	bucketName := os.Getenv("BUCKET_NAME")
+
+	ctx := context.Background()
+	objectCh := minioStorage.ListObjects(ctx, os.Getenv("BUCKET_NAME"), minio.ListObjectsOptions{
+		Prefix:    pathFolder,
+		Recursive: true,
+	})
+
+	for object := range objectCh {
+		if object.Err != nil {
+			response.SendError(w, http.StatusInternalServerError, "Failed open file")
+			return
+		}
+
+		newObjectKey := strings.Replace(object.Key, pathFolder, newPathFolder, 1)
+
+		src := minio.CopySrcOptions{
+			Bucket: bucketName,
+			Object: object.Key,
+		}
+		dst := minio.CopyDestOptions{
+			Bucket: bucketName,
+			Object: newObjectKey,
+		}
+
+		_, err := minioStorage.CopyObject(ctx, dst, src)
+		if err != nil {
+			response.SendError(w, http.StatusInternalServerError, "Failed copy file")
+			return
+		}
+
+		err = minioStorage.RemoveObject(ctx, bucketName, object.Key, minio.RemoveObjectOptions{})
+		if err != nil {
+			response.SendError(w, http.StatusInternalServerError, "Failed remove file")
+			return
+		}
+	}
+
+	response.SendData(w, http.StatusCreated, "Success folder rename")
+}
+
 func recursiveDelete(minioStorage *minio.Client, bucketName, prefix string) error {
 	ctx := context.Background()
 	objectCh := minioStorage.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
