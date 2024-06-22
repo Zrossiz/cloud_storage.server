@@ -6,6 +6,8 @@ import (
 	"cloudStorage/internal/transport/rest/response"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -228,6 +230,15 @@ func GetAllByPath(w http.ResponseWriter, r *http.Request, redis *redis.Client, m
 			return
 		}
 
+		reqParams := make(url.Values)
+		presignedURL, err := minioStorage.PresignedGetObject(ctx, os.Getenv("BUCKET_NAME"), object.Key, time.Hour*24, reqParams)
+		if err != nil {
+			response.SendError(w, http.StatusInternalServerError, "Failed to get presigned URL")
+			return
+		}
+
+		fileLink := strings.Replace(presignedURL.String(), "minio:9000", os.Getenv("MINIO_PUBLIC_HOST"), 1)
+
 		fileType := "file"
 		if object.Size == 0 && strings.HasSuffix(object.Key, "/") {
 			fileType = "folder"
@@ -236,6 +247,7 @@ func GetAllByPath(w http.ResponseWriter, r *http.Request, redis *redis.Client, m
 		files = append(files, FileLink{
 			Name: strings.TrimPrefix(object.Key, pathFolder),
 			Type: fileType,
+			Link: fileLink,
 		})
 	}
 
@@ -343,4 +355,42 @@ func recursiveDelete(minioStorage *minio.Client, bucketName, prefix string) erro
 	}
 
 	return nil
+}
+
+func DownloadFile(w http.ResponseWriter, r *http.Request, redis *redis.Client, minioStorage *minio.Client) {
+	customRequest, isAuth := middleware.AuthMiddleware(w, r, redis)
+	if !isAuth || customRequest == nil {
+		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	objectName := r.FormValue("path")
+	if objectName == "" {
+		http.Error(w, "File name is missing", http.StatusBadRequest)
+		return
+	}
+
+	bucketName := os.Getenv("BUCKET_NAME")
+
+	object, err := minioStorage.GetObject(context.Background(), bucketName, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		http.Error(w, "Failed to get file from storage", http.StatusInternalServerError)
+		return
+	}
+	defer object.Close()
+
+	info, err := object.Stat()
+	if err != nil {
+		http.Error(w, "Failed to get file info", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", objectName))
+	w.Header().Set("Content-Type", info.ContentType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size))
+
+	if _, err := io.Copy(w, object); err != nil {
+		http.Error(w, "Failed to write file to response", http.StatusInternalServerError)
+		return
+	}
 }
