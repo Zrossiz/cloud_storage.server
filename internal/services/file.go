@@ -214,9 +214,8 @@ func GetAllByPath(w http.ResponseWriter, r *http.Request, redis *redis.Client, m
 		response.SendError(w, http.StatusInternalServerError, "UserId not found in context")
 		return
 	}
-	dirPath := r.FormValue("path")
+	dirPath := r.URL.Query().Get("path")
 	pathFolder := "user-" + userId + "-files/" + dirPath
-
 	ctx := context.Background()
 	objectCh := minioStorage.ListObjects(ctx, os.Getenv("BUCKET_NAME"), minio.ListObjectsOptions{
 		Prefix:    pathFolder,
