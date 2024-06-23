@@ -58,10 +58,12 @@ func CreateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redi
 	}
 
 	userCookie := http.Cookie{
-		Name:    "userId",
-		Value:   fmt.Sprintf("%d", user.ID),
-		Expires: time.Now().Add(10 * time.Second),
-		Path:    "/",
+		Name:     "userId",
+		Value:    fmt.Sprintf("%d", user.ID),
+		Expires:  time.Now().Add(10 * time.Second),
+		Path:     "/login",
+		Secure:   false,
+		HttpOnly: true,
 	}
 
 	http.SetCookie(w, &userCookie)
@@ -103,10 +105,12 @@ func LoginUser(w http.ResponseWriter, r *http.Request, db *gorm.DB, redis *redis
 	}
 
 	userCookie := http.Cookie{
-		Name:    "userId",
-		Value:   fmt.Sprintf("%d", existingUser.ID),
-		Expires: time.Now().Add(24 * time.Hour),
-		Path:    "/",
+		Name:     "userId",
+		Value:    fmt.Sprintf("%d", existingUser.ID),
+		Expires:  time.Now().Add(24 * time.Hour),
+		Path:     "/",
+		Secure:   false,
+		HttpOnly: true,
 	}
 
 	http.SetCookie(w, &userCookie)
@@ -126,10 +130,12 @@ func createSession(userId int, redis *redis.Client) (http.Cookie, error) {
 	}
 
 	cookie := http.Cookie{
-		Name:    "session",
-		Value:   token,
-		Expires: time.Now().Add(24 * time.Hour),
-		Path:    "/",
+		Name:     "session",
+		Value:    token,
+		Expires:  time.Now().Add(24 * time.Hour),
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
 	}
 
 	return cookie, nil
